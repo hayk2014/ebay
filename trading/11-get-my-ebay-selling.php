@@ -47,6 +47,7 @@ use \DTS\eBaySDK\Trading\Enums;
  */
 $service = new Services\TradingService(array(
     'apiVersion' => $config['tradingApiVersion'],
+    'sandbox' => true,
     'siteId' => Constants\SiteIds::US
 ));
 
@@ -65,7 +66,7 @@ $request = new Types\GetMyeBaySellingRequestType();
  * http://devbay.net/sdk/guides/application-keys/
  */
 $request->RequesterCredentials = new Types\CustomSecurityHeaderType();
-$request->RequesterCredentials->eBayAuthToken = $config['production']['userToken'];
+$request->RequesterCredentials->eBayAuthToken = $config['sandbox']['userToken'];
 
 /**
  * Request that eBay returns the list of actively selling items.
@@ -109,6 +110,7 @@ do {
     }
 
     if ($response->Ack !== 'Failure' && isset($response->ActiveList)) {
+        $item_count = 0;
         foreach ($response->ActiveList->ItemArray->Item as $item) {
             printf("(%s) %s: %s %.2f\n",
                 $item->ItemID,
@@ -116,9 +118,11 @@ do {
                 $item->SellingStatus->CurrentPrice->currencyID,
                 $item->SellingStatus->CurrentPrice->value
             );
+            $item_count++;
         }
     }
 
     $pageNum += 1;
 
 } while(isset($response->ActiveList) && $pageNum <= $response->ActiveList->PaginationResult->TotalNumberOfPages);
+echo $item_count;
