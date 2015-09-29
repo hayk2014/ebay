@@ -32,49 +32,19 @@ class Trading {
         ));
 
         $this->$metode();
-
-        if ($metode == 'get_my_sellings') {
-            
-            $pageNum = 1;
-            do {
-                $this->request->ActiveList->Pagination->PageNumber = $pageNum;
-                $response = $this->service->getMyeBaySelling($this->request);
-                
-                echo "==================\nResults for page $pageNum\n==================\n";
-
-                if (isset($response->Errors)) {
-                    foreach ($response->Errors as $error) {
-                        printf("%s: %s\n%s\n\n", $error->SeverityCode === Enums\SeverityCodeType::C_ERROR ? 'Error' : 'Warning', $error->ShortMessage, $error->LongMessage
-                        );
-                    }
-                }
-
-                if ($response->Ack !== 'Failure' && isset($response->ActiveList)) {
-                    $item_count = 0;
-                    foreach ($response->ActiveList->ItemArray->Item as $item) {
-                        printf("(%s) %s: %s %.2f\n", $item->ItemID, $item->Title, $item->SellingStatus->CurrentPrice->currencyID, $item->SellingStatus->CurrentPrice->value
-                        );
-                        $item_count++;
-                    }
-                }
-
-                $pageNum += 1;
-            } while (isset($response->ActiveList) && $pageNum <= $response->ActiveList->PaginationResult->TotalNumberOfPages);
-            echo "Total $item_count Items";
-            
-        } else {
-            if (isset($this->response->Errors)) {
-                foreach ($this->response->Errors as $error) {
-                    printf("%s: %s\n%s\n\n", $error->SeverityCode === Enums\SeverityCodeType::C_ERROR ? 'Error' : 'Warning', $error->ShortMessage, $error->LongMessage
-                    );
-                }
-            }
-
-            if ($this->response->Ack !== 'Failure') {
-                printf("The item was listed to the eBay Sandbox with the Item number %s\n", $this->response->ItemID
+        
+        if (isset($this->response->Errors)) {
+            foreach ($this->response->Errors as $error) {
+                printf("%s: %s\n%s\n\n", $error->SeverityCode === Enums\SeverityCodeType::C_ERROR ? 'Error' : 'Warning', $error->ShortMessage, $error->LongMessage
                 );
             }
         }
+
+        if ($this->response->Ack !== 'Failure') {
+            printf("The item was listed to the eBay Sandbox with the Item number %s\n", $this->response->ItemID
+            );
+        }
+        
     }
 
     public function add_fix() {
@@ -465,12 +435,20 @@ class Trading {
 
     public function get_my_sellings() {
 
+        require __DIR__ . '/../vendor/autoload.php';
+        $this->config = require __DIR__ . '/../configuration.php';
+
         /**
-         * Create the request object.
-         *
-         * For more information about creating a request object, see:
-         * http://devbay.net/sdk/guides/getting-started/#request-object
+         * Create the service object.
+         * For more information about creating a service object, see:
+         * http://devbay.net/sdk/guides/getting-started/#service-object
          */
+        $this->service = new Services\TradingService(array(
+            'apiVersion' => $this->config['tradingApiVersion'],
+            'sandbox' => true,
+            'siteId' => Constants\SiteIds::US
+        ));
+        
         $this->request = new Types\GetMyeBaySellingRequestType();
 
         /**
@@ -491,6 +469,55 @@ class Trading {
         $this->request->ActiveList->Pagination = new Types\PaginationType();
         $this->request->ActiveList->Pagination->EntriesPerPage = 10;
         $this->request->ActiveList->Sort = Enums\ItemSortTypeCodeType::C_CURRENT_PRICE_DESCENDING;
+        
+        $pageNum = 1;
+        
+        do {
+        $this->request->ActiveList->Pagination->PageNumber = $pageNum;
+
+        /**
+         * Send the request to the GetMyeBaySelling service operation.
+         *
+         * For more information about calling a service operation, see:
+         * http://devbay.net/sdk/guides/getting-started/#service-operation
+         */
+        $response = $this->service->getMyeBaySelling($this->request);
+
+        /**
+         * Output the result of calling the service operation.
+         *
+         * For more information about working with the service response object, see:
+         * http://devbay.net/sdk/guides/getting-started/#response-object
+         */
+        echo "==================\nResults for page $pageNum\n==================\n";
+
+        if (isset($response->Errors)) {
+            foreach ($response->Errors as $error) {
+                printf("%s: %s\n%s\n\n",
+                    $error->SeverityCode === Enums\SeverityCodeType::C_ERROR ? 'Error' : 'Warning',
+                    $error->ShortMessage,
+                    $error->LongMessage
+                );
+            }
+        }
+
+        if ($response->Ack !== 'Failure' && isset($response->ActiveList)) {
+            $item_count = 0;
+            foreach ($response->ActiveList->ItemArray->Item as $item) {
+                printf("(%s) %s: %s %.2f\n",
+                    $item->ItemID,
+                    $item->Title,
+                    $item->SellingStatus->CurrentPrice->currencyID,
+                    $item->SellingStatus->CurrentPrice->value
+                );
+                $item_count++;
+            }
+        }
+
+        $pageNum += 1;
+
+        } while(isset($response->ActiveList) && $pageNum <= $response->ActiveList->PaginationResult->TotalNumberOfPages);
+        echo $item_count;
         
     }
 
